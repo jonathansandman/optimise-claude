@@ -1,0 +1,11 @@
+{
+  "name": "optimise-claude",
+  "owner": { "name": "Jonathan Sandman" },
+  "plugins": [
+    {
+      "name": "optimise-claude",
+      "source": "./",
+      "description": "/optimise-claude: audit and slim any project's Claude Code context, set cost-saving defaults, and guard against token-wasting reads."
+    }
+  ]
+}
