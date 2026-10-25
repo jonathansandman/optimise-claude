@@ -17,7 +17,7 @@ Cost = calls x context size. CLAUDE.md, MEMORY.md, plugin/skill listings and con
 1. **Measures** CLAUDE.md, rules, MEMORY.md, plugins, skills and MCP servers, with byte counts.
 2. **Splits CLAUDE.md** (target <= 10KB): domain sections move verbatim into `.claude/rules/*.md` with `paths:` frontmatter, so they load only when matching files are read.
 3. **Trims MEMORY.md** (target <= 12KB) into a one-line-per-memory index. Memory files are never deleted.
-4. **Project settings:** `CLAUDE_CODE_AUTO_COMPACT_WINDOW=120000`, disables claude.ai connectors, unused plugins and skills.
+4. **Project settings:** disables claude.ai connectors, unused plugins and skills. Never enables or forces auto-compact.
 5. **User defaults:** `model: opusplan` (Opus plans, Sonnet executes) and `effortLevel: medium`.
 6. **Commits** only what it touched, then **reports** before/after sizes.
 

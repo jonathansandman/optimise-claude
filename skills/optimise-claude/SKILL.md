@@ -41,7 +41,7 @@ Rules for yourself while doing it:
 - Skip if already <= 12KB.
 
 ## 4. Project `.claude/settings.json` (create if missing; merge, never clobber permissions or hooks)
-- `"env": {"CLAUDE_CODE_AUTO_COMPACT_WINDOW": "120000"}`: caps context. Note it locks `/autocompact`.
+- Never set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` or otherwise enable/force auto-compact. A low window compacts constantly and makes Claude unusable. If a project settings file already has it, report it and leave removal to the user. Context is kept small by `/clear` between tasks instead.
 - `"disableClaudeAiConnectors": true` when claude.ai connectors (Slack, Asana, Figma, etc.) are unused here. They add deferred tool names to every session.
 - `enabledPlugins`: set plugins this project never uses to `false` (project overrides user). Plugin skills cannot be hidden with `skillOverrides`, only by disabling the plugin. Be conservative: only disable what you saw no use of; list each in the report so it is easy to revert.
 - `skillOverrides`: `off` for skills never used here, `name-only` for rarely used, `user-invocable-only` for slash-command-only skills.
