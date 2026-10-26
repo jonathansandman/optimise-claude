@@ -18,7 +18,7 @@ Cost = calls x context size. CLAUDE.md, MEMORY.md, plugin/skill listings and con
 1. **Measures** CLAUDE.md, rules, MEMORY.md, the global CLAUDE.md and every enabled plugin's skill listing (often the largest hidden cost, paid in every project), with byte counts.
 2. **Splits CLAUDE.md** (target <= 5KB; global <= 2KB): architecture, conventions and subsystem sections move verbatim into `.claude/rules/*.md` with `paths:` frontmatter, so they load only when matching files are touched. Occasional procedures become skills.
 3. **Shrinks MEMORY.md** (target <= 3KB) to cross-cutting rules. Area memory moves into path-scoped `.claude/rules/memory-<area>.md`, so it loads with the code it is about, and a contract line stops the index regrowing. Memories about deprecated features are deleted (backed up); every other memory file stays, and links are integrity-checked.
-4. **Plugins and skills:** disables unused plugins at user level (their skills cost every project), hides unused skills, removes duplicate loose skill copies, disables claude.ai connectors. Never enables or forces auto-compact.
+4. **Plugins, MCP and skills:** disables plugins unused anywhere at user level (their skills cost every project) and plugins irrelevant to this project at project level; blocks irrelevant project `.mcp.json` servers and lists user/plugin MCP servers to toggle off in `/mcp` for this project; hides unused skills, removes duplicate loose skill copies, disables claude.ai connectors. Never enables or forces auto-compact.
 5. **User defaults:** `model: opusplan` (Opus plans, Sonnet executes) and `effortLevel: medium`.
 6. **Commits** only what it touched, then **reports** before/after sizes for this project and for every project.
 

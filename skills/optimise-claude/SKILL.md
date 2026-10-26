@@ -59,7 +59,14 @@ An index of every memory still inflates without bound (one line per memory, fore
 - **Integrity check:** every topic file must be linked from MEMORY.md or a `memory-*.md` rule, and every `[[slug]]` must resolve to a file. Fix both lists to empty.
 
 ## 4. Plugins, skills, connectors
-- Plugin skills cannot be hidden with `skillOverrides`, only by disabling the plugin. Disable at **user level** (`~/.claude/settings.json`) plugins the user doesn't use anywhere (they cost every project); at project level only for project-specific ones. List each so it is easy to revert; a plugin whose hooks the user relies on (e.g. a response-style mode) stays even if its skills are unused.
+- Plugin skills cannot be hidden with `skillOverrides`, only by disabling the plugin. Two levels:
+  - **User level** (`~/.claude/settings.json` `enabledPlugins`): plugins the user doesn't use in any project (they cost every project).
+  - **Project level** (project `.claude/settings.json` `enabledPlugins`, which overrides user): plugins the user keeps for other projects but that are irrelevant here (e.g. a Rust LSP in a Python repo, a design kit in a backend-only repo). Set them `false` with a `"//enabledPlugins": "why"` note.
+  - List each so it is easy to revert. A plugin whose hooks the user relies on (e.g. a response-style mode) stays even if its skills are unused.
+- **MCP servers** (`claude mcp list` shows each server and its source). Tool search defers MCP tool schemas by default, but every server still costs its tool-name listing, its startup and its connection. For servers irrelevant to this project:
+  - Project `.mcp.json` servers: add them to `disabledMcpjsonServers` in the project `.claude/settings.json`.
+  - User-scope, plugin-provided and claude.ai connector servers: the per-project switch is the `/mcp` toggle (stored as `disabledMcpServers` in `~/.claude.json`). Do NOT edit `~/.claude.json` yourself while Claude Code runs (the running process owns and rewrites it). List these servers in the report for the user to toggle off in `/mcp`.
+  - A server that failed to connect still costs a startup attempt: report it so the user can fix or disable it.
 - `skillOverrides` (user or project settings): `off` for never-used skills, `name-only` for rare ones, `user-invocable-only` for slash-command-only skills.
 - `"disableClaudeAiConnectors": true` when claude.ai connectors are unused.
 - Never set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` or force auto-compact. If a settings file has it, report it and leave it to the user.
@@ -77,5 +84,6 @@ Global and plugin changes already help every project. List other repos with a la
 
 ## 8. Report
 - Before/after bytes per always-loaded source and the total, in this project and for every project (global + plugins).
-- Every plugin, skill, connector and setting changed; files created; memories deleted; the backup path; anything left uncommitted and why.
+- Every plugin (user vs project level), skill, MCP server, connector and setting changed; files created; memories deleted; the backup path; anything left uncommitted and why.
+- MCP servers for the user to toggle off in `/mcp` in this project (with the reason for each).
 - Reminders: plugin/env/model changes need a restart. Switching model or effort mid-session invalidates the prompt cache. After more than 1 hour idle on a big session, `/clear` and restate the task.
