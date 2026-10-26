@@ -1,64 +1,81 @@
 ---
 name: optimise-claude
-description: Cut Claude Code token spend in the current project, end to end. Measures always-loaded context, splits a bloated CLAUDE.md into path-scoped rules, turns MEMORY.md into an index, trims plugins/skills/connectors, sets a compact window, and sets cost-saving user defaults (opusplan, medium effort). Use when the user says "optimise claude", "reduce token usage", "cut Claude costs", or runs /optimise-claude.
+description: Cut Claude Code token spend, end to end. Measures always-loaded context (CLAUDE.md, MEMORY.md, global file, plugin skill listings), moves area knowledge into path-scoped rules, shrinks MEMORY.md to cross-cutting rules, trims plugins/skills/connectors, and sets cost-saving user defaults. Use when the user says "optimise claude", "reduce token usage", "cut Claude costs", or runs /optimise-claude.
 disable-model-invocation: true
 ---
 
 # optimise-claude
 
-Cost = calls x context size. The fixed prefix (CLAUDE.md, MEMORY.md, skill/plugin listings, tool names) is re-sent on every call, and prompt-cache reads on long sessions dominate spend. Do the whole job below without asking questions; report at the end.
+Cost = calls x context size. Everything loaded at session start (CLAUDE.md files, MEMORY.md, every enabled plugin's skill listing, tool names) is re-sent on every call, and prompt-cache reads on long sessions dominate spend. The win is moving knowledge from "always loaded" to "loaded when relevant":
 
-Rules for yourself while doing it:
+| Mechanism | Loads |
+| - | - |
+| CLAUDE.md, global `~/.claude/CLAUDE.md`, MEMORY.md (first 200 lines / 25KB) | every call |
+| `.claude/rules/*.md` WITHOUT `paths:` | every call |
+| `.claude/rules/*.md` WITH `paths:` | only when a matching file is read/written/edited |
+| subdirectory `CLAUDE.md` | only once a file in that folder is touched |
+| skill | name + description every call; body only when used |
+| memory topic files | only when opened |
+
+Do the whole job below. Ask the user ONE question up front (step 0); otherwise decide and report at the end.
+
+Rules for yourself:
 - Edit existing files with the Edit tool. Stage specific files only (never `git add .` / `-A`).
-- Anything uncommitted that you did not change belongs to another session: do not touch, stage or commit it, and tell the user.
+- Anything uncommitted that you did not change belongs to another session: don't touch it; tell the user.
 - Do not run the project's test suite.
-- Never delete content: move it. Move rules verbatim, do not paraphrase.
+- Move content verbatim; never paraphrase a rule. Delete only what step 0 says is dead.
 - Write verbose command output to a file, then tail/grep it.
 
-## 1. Measure (report numbers before changing anything)
-- `wc -c` on: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/*.md`, `.claude/settings.json`, `~/.claude/CLAUDE.md`, and the auto-memory `MEMORY.md`. Memory path: `~/.claude/projects/<cwd with every non-alphanumeric char replaced by '-'>/memory/MEMORY.md`.
-- List enabled plugins (`~/.claude/settings.json` and the project's `.claude/settings.json`), plus the skills, agents and MCP servers visible this session. Note the ones this project never uses.
-- Targets: project CLAUDE.md <= 10KB, MEMORY.md <= 12KB.
+## 0. Back up and ask
+- Back up first (memory is not in git): `tar -czf ~/claude-config-backup-<date>.tar.gz .claude/settings.json .claude/CLAUDE.md .claude/skills .claude/projects/*/memory` from `~`.
+- Ask once: "Which features, models or projects are deprecated or removed?" Memories, skills and CLAUDE.md sections about them are deleted, not moved.
 
-## 2. Split CLAUDE.md
-- Keep in the core file: project context and priorities, environment constraints (OS, shell, path rules), git-safety rules, test/build commands, architecture overview, doc map, commit conventions.
-- Move each domain-specific section (one subsystem, framework or workflow) verbatim into `.claude/rules/<topic>.md`:
+## 1. Measure (report numbers before changing anything)
+- `wc -c`: project `CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/*.md` (note which lack `paths:`), `~/.claude/CLAUDE.md`, the auto-memory `MEMORY.md` (`~/.claude/projects/<cwd with every non-alphanumeric char replaced by '-'>/memory/MEMORY.md`).
+- **Plugin skill listings** (often the biggest hidden cost, and in EVERY project): for each enabled plugin, count its `SKILL.md` files and sum their frontmatter bytes. Also user skills in `~/.claude/skills/` and project `.claude/skills/`.
+- Duplicates: a skill present both as a plugin skill and as a loose copy in `~/.claude/skills/` is listed twice and the copies drift. Keep the plugin's, remove the loose copy.
+- Targets: project CLAUDE.md <= 5KB, MEMORY.md <= 3KB, global CLAUDE.md <= 2KB.
+
+## 2. Split CLAUDE.md (project, then global)
+- Keep in the core file only what every task needs: project context and priorities, environment constraints (OS, shell, path rules), git safety, the test/build commands and their rules, work-tracking conventions, commit format.
+- Move to path-scoped rules, verbatim: language/framework architecture, logging and coding conventions, ADR/doc maps, per-subsystem sections. Example: a Python backend's layers, logging and checks → `.claude/rules/backend-dev.md` with `paths: ["src/**/*.py", "tests/**"]`.
   ```
   ---
   paths:
     - "src/foo/**"
   ---
   ```
-  Rules with `paths:` load only when a matching file is read. Pick globs tight enough to matter.
-- Leave a 1-2 line pointer in CLAUDE.md for each moved section.
-- Remove references to plugins/agents you disable in step 4.
-- Add a short "Context discipline" section if absent: one task per session and `/clear` between tasks; never re-read a file you just edited; read ranges (`offset`/`limit`), not whole files; send verbose output to a file then tail/grep it; prefer Edit over Write on existing files; batch messages to peer sessions (one combined message per recipient).
-- Skip this step if CLAUDE.md is already <= 10KB.
+  Patterns are relative to the folder containing `.claude`. Keep brace groups few (one shared expansion budget per rule). A rule only loads for sibling worktrees when the session runs in that worktree.
+- Procedures used only sometimes (dispatch checklists, release steps) → a skill, not CLAUDE.md.
+- Leave a one-line pointer in CLAUDE.md to the rules folder, not one per section.
+- Add a short "Context discipline" section if absent: `/clear` between tasks; never re-read a file you just edited; read ranges, not whole files; verbose output to a file then tail/grep; prefer Edit over Write; batch peer-session messages.
+- Global `~/.claude/CLAUDE.md` loads in every project: keep only cross-project token rules; move long checklists into user skills.
 
-## 3. Trim MEMORY.md
-- It loads in full every call. Make it an index: one line per memory, bare `[[slug]]` wikilinks, a short hook only where it changes behaviour before the file is opened (traps/warnings). No status words, hashes or content.
-- Never delete the underlying memory files.
-- Skip if already <= 12KB.
+## 3. MEMORY.md: cross-cutting rules only
+An index of every memory still inflates without bound (one line per memory, forever). Instead:
+- **Area memory → path-scoped rules.** Group the index's area lines (one subsystem each) into `.claude/rules/memory-<area>.md` with `paths:` globs for that subsystem's files. Body: a one-line note on where the topic files live (`~/.claude/projects/<repo>/memory/<slug>.md`), then the `[[slug]]` lines with their trap hooks, verbatim.
+- **MEMORY.md keeps only** rules that apply to every task (working style, orchestration, git/test discipline, reporting) plus a contract line: "Hard cap 3KB. New memory: write its topic file, then add its slug to the matching `memory-*.md` rule; add a line here only for a rule that applies to every task. Find anything else by Grep on this folder."
+- Delete memories about features from step 0's dead list (backup exists).
+- **Integrity check:** every topic file must be linked from MEMORY.md or a `memory-*.md` rule, and every `[[slug]]` must resolve to a file. Fix both lists to empty.
 
-## 4. Project `.claude/settings.json` (create if missing; merge, never clobber permissions or hooks)
-- Never set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` or otherwise enable/force auto-compact. A low window compacts constantly and makes Claude unusable. If a project settings file already has it, report it and leave removal to the user. Context is kept small by `/clear` between tasks instead.
-- `"disableClaudeAiConnectors": true` when claude.ai connectors (Slack, Asana, Figma, etc.) are unused here. They add deferred tool names to every session.
-- `enabledPlugins`: set plugins this project never uses to `false` (project overrides user). Plugin skills cannot be hidden with `skillOverrides`, only by disabling the plugin. Be conservative: only disable what you saw no use of; list each in the report so it is easy to revert.
-- `skillOverrides`: `off` for skills never used here, `name-only` for rarely used, `user-invocable-only` for slash-command-only skills.
-- Add a `"//key": "why"` comment beside each block.
-- If the file already has uncommitted hunks you did not make, edit it but do not commit it, and say so.
+## 4. Plugins, skills, connectors
+- Plugin skills cannot be hidden with `skillOverrides`, only by disabling the plugin. Disable at **user level** (`~/.claude/settings.json`) plugins the user doesn't use anywhere (they cost every project); at project level only for project-specific ones. List each so it is easy to revert; a plugin whose hooks the user relies on (e.g. a response-style mode) stays even if its skills are unused.
+- `skillOverrides` (user or project settings): `off` for never-used skills, `name-only` for rare ones, `user-invocable-only` for slash-command-only skills.
+- `"disableClaudeAiConnectors": true` when claude.ai connectors are unused.
+- Never set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` or force auto-compact. If a settings file has it, report it and leave it to the user.
 
-## 5. User defaults in `~/.claude/settings.json` (merge; set only keys that are missing or weaker, never overwrite a deliberate choice without saying so)
-- `"model": "opusplan"`: Opus plans, Sonnet executes.
-- `"effortLevel": "medium"`: raise per task only for hard problems.
-- Leave existing hooks, plugins and permissions alone.
-- This plugin ships guard hooks (installed via the plugin itself, nothing to copy): blocks whole-file reads of files over 30KB, blocks re-reading a file just edited, blocks `grep -r` with no exclusions, and warns at session start when CLAUDE.md or MEMORY.md is oversized.
+## 5. User defaults in `~/.claude/settings.json` (merge; set only missing or weaker keys; never silently overwrite a deliberate choice)
+- `"model": "opusplan"`; `"effortLevel": "medium"`. Leave hooks and permissions alone.
+- This plugin's guard hooks: block whole-file reads over 30KB, block re-reading a just-edited file, block `grep -r` with no exclusions, and warn at session start when CLAUDE.md, MEMORY.md or the global CLAUDE.md exceed the step-1 targets.
 
-## 6. Commit
-Commit only the files you created or edited in this project, as `chore: slim CLAUDE.md, move path-scoped rules to .claude/rules`. Skip the commit if the project is not a git repo. Memory and `~/.claude` files are outside the repo and are not committed.
+## 6. Other projects
+Global and plugin changes already help every project. List other repos with a large CLAUDE.md (`wc -c` on likely roots). Apply step 2 only to repos the user works in now, and skip any repo other sessions are actively editing (say so in the report).
 
-## 7. Report
-- Before/after bytes for CLAUDE.md, MEMORY.md and total always-loaded context.
-- Every plugin, skill and connector disabled; every file created; every user-level setting changed.
-- Anything left uncommitted and why.
-- Reminders: plugin/env/model changes need a session restart. Switching model or effort mid-session invalidates the prompt cache, so choose at session start. After more than 1 hour idle on a big session, `/clear` and restate the task (the cache expired). `/model opusplan` is worth it only for tasks big enough to need a plan.
+## 7. Commit and verify
+- Commit only the files you created or edited in this project: `chore: cut always-on context; move area detail to path-scoped rules`. Memory and `~/.claude` files are outside the repo.
+- After a restart, `/context` shows the new always-loaded total. An `InstructionsLoaded` hook can log which rules load and why if a path-scoped rule seems not to fire.
+
+## 8. Report
+- Before/after bytes per always-loaded source and the total, in this project and for every project (global + plugins).
+- Every plugin, skill, connector and setting changed; files created; memories deleted; the backup path; anything left uncommitted and why.
+- Reminders: plugin/env/model changes need a restart. Switching model or effort mid-session invalidates the prompt cache. After more than 1 hour idle on a big session, `/clear` and restate the task.

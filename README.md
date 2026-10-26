@@ -14,12 +14,13 @@ Cost = calls x context size. CLAUDE.md, MEMORY.md, plugin/skill listings and con
 
 ## What `/optimise-claude` does
 
-1. **Measures** CLAUDE.md, rules, MEMORY.md, plugins, skills and MCP servers, with byte counts.
-2. **Splits CLAUDE.md** (target <= 10KB): domain sections move verbatim into `.claude/rules/*.md` with `paths:` frontmatter, so they load only when matching files are read.
-3. **Trims MEMORY.md** (target <= 12KB) into a one-line-per-memory index. Memory files are never deleted.
-4. **Project settings:** disables claude.ai connectors, unused plugins and skills. Never enables or forces auto-compact.
+0. **Backs up** `~/.claude` settings, skills and memories, and asks once which features are deprecated.
+1. **Measures** CLAUDE.md, rules, MEMORY.md, the global CLAUDE.md and every enabled plugin's skill listing (often the largest hidden cost, paid in every project), with byte counts.
+2. **Splits CLAUDE.md** (target <= 5KB; global <= 2KB): architecture, conventions and subsystem sections move verbatim into `.claude/rules/*.md` with `paths:` frontmatter, so they load only when matching files are touched. Occasional procedures become skills.
+3. **Shrinks MEMORY.md** (target <= 3KB) to cross-cutting rules. Area memory moves into path-scoped `.claude/rules/memory-<area>.md`, so it loads with the code it is about, and a contract line stops the index regrowing. Memories about deprecated features are deleted (backed up); every other memory file stays, and links are integrity-checked.
+4. **Plugins and skills:** disables unused plugins at user level (their skills cost every project), hides unused skills, removes duplicate loose skill copies, disables claude.ai connectors. Never enables or forces auto-compact.
 5. **User defaults:** `model: opusplan` (Opus plans, Sonnet executes) and `effortLevel: medium`.
-6. **Commits** only what it touched, then **reports** before/after sizes.
+6. **Commits** only what it touched, then **reports** before/after sizes for this project and for every project.
 
 ## Guard hooks (active as soon as the plugin is installed)
 
@@ -28,7 +29,7 @@ Cost = calls x context size. CLAUDE.md, MEMORY.md, plugin/skill listings and con
 | Read guard | Blocks whole-file reads of files over 30KB. Use `offset`/`limit`. Override: `OPTIMISE_CLAUDE_MAX_READ_BYTES`. |
 | Re-read guard | Blocks re-reading a file this session just edited when nothing else changed it. |
 | Grep guard | Blocks `grep -r` with no `--exclude-dir`/`--include`. Use the Grep tool. |
-| Size warning | At session start, warns if CLAUDE.md > 10KB or MEMORY.md > 12KB. |
+| Size warning | At session start, warns if CLAUDE.md > 5KB, MEMORY.md > 3KB or `~/.claude/CLAUDE.md` > 2KB. |
 
 Hooks need Node.js on PATH.
 

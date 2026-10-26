@@ -6,8 +6,9 @@ const os = require("os");
 const path = require("path");
 const { readInput } = require("./lib");
 
-const CLAUDE_MD_MAX = 10 * 1024;
-const MEMORY_MD_MAX = 12 * 1024;
+const CLAUDE_MD_MAX = 5 * 1024;
+const MEMORY_MD_MAX = 3 * 1024;
+const GLOBAL_CLAUDE_MD_MAX = 2 * 1024;
 
 const input = readInput();
 const cwd = input.cwd || process.cwd();
@@ -25,7 +26,15 @@ const claudeMd = path.join(cwd, "CLAUDE.md");
 const cs = size(claudeMd);
 if (cs !== null && cs > CLAUDE_MD_MAX) {
   warnings.push(
-    `CLAUDE.md is ${(cs / 1024).toFixed(1)}KB (target <= 10KB). Move subsystem sections into .claude/rules/*.md with paths: frontmatter.`
+    `CLAUDE.md is ${(cs / 1024).toFixed(1)}KB (target <= 5KB). Move subsystem sections into .claude/rules/*.md with paths: frontmatter.`
+  );
+}
+
+const globalMd = path.join(os.homedir(), ".claude", "CLAUDE.md");
+const gs = size(globalMd);
+if (gs !== null && gs > GLOBAL_CLAUDE_MD_MAX) {
+  warnings.push(
+    `~/.claude/CLAUDE.md is ${(gs / 1024).toFixed(1)}KB (target <= 2KB). It loads in every project: move checklists into user skills.`
   );
 }
 
@@ -35,7 +44,7 @@ const memoryMd = path.join(os.homedir(), ".claude", "projects", mangled, "memory
 const ms = size(memoryMd);
 if (ms !== null && ms > MEMORY_MD_MAX) {
   warnings.push(
-    `MEMORY.md is ${(ms / 1024).toFixed(1)}KB (target <= 12KB). Make it a one-line-per-memory index.`
+    `MEMORY.md is ${(ms / 1024).toFixed(1)}KB (target <= 3KB). Keep only cross-cutting rules; move area entries into path-scoped .claude/rules/memory-*.md.`
   );
 }
 
