@@ -1,6 +1,6 @@
 {
   "name": "optimise-claude",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "One command (/optimise-claude) that cuts Claude Code token spend in any project, plus guard hooks that stop common token-wasting habits.",
   "author": { "name": "Jonathan Sandman" },
   "license": "MIT",
